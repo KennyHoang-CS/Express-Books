@@ -2,6 +2,7 @@ const express = require("express");
 const Book = require("../models/book");
 const jsonschema = require('jsonschema');
 const bookSchema = require('../schemas/bookSchema.json');
+const updateBookSchema = require ('../schemas/bookUpdateSchema.json');
 const { json } = require("express");
 const ExpressError = require("../expressError");
 
@@ -36,7 +37,7 @@ router.post("/", async function (req, res, next) {
   try {
     // Check if book fits schema requirements.
     const result = jsonschema.validate(req.body, bookSchema);
-    
+  
     // Check if schema failed 
     if (!result.valid){
       return next({
@@ -45,8 +46,9 @@ router.post("/", async function (req, res, next) {
       })
     }
 
-    const book = await Book.create(req.body);
-    return res.status(201).json({ book });
+    // Create the new book. 
+    const newBook = await Book.create(req.body);
+    return res.status(201).json({ newBook });
   } catch (err) {
     return next(err);
   }
@@ -56,8 +58,25 @@ router.post("/", async function (req, res, next) {
 
 router.put("/:isbn", async function (req, res, next) {
   try {
+    
+    // Isbn in request body not allowed.
+    if ('isbn' in req.body){
+      throw new ExpressError('ISBN in body not allowed.', 400);
+    }
+
+    // Check schema.
+    const result =  jsonschema.validate(req.body, updateBookSchema);
+    if (!result.valid){
+      return next({
+        status: 400,
+        errors: result.errors.map(e => e.stack)
+      })
+    }
+
+    // Book update is legit. 
     const book = await Book.update(req.params.isbn, req.body);
     return res.json({ book });
+
   } catch (err) {
     return next(err);
   }
